@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Job & Internship Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --ink:#12231F;
+    --paper:#F6F4EE;
+    --card:#FFFFFF;
+    --line:#DCE3DA;
+    --moss:#2F5D50;
+    --moss-dark:#20423A;
+    --amber:#C77D3A;
+    --amber-soft:#F3E3D2;
+    --rose:#B0473F;
+    --rose-soft:#F5DEDB;
+    --sage:#7C9885;
+    --sage-soft:#E4EDE4;
+    --slate:#5B6B66;
+    --muted:#8B9791;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding-bottom:90px;
+  }
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    background:var(--moss-dark);
+    color:#F6F4EE;
+    padding:18px 18px 16px;
+  }
+  .topbar .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:#B7CFC3;
+    margin-bottom:4px;
+  }
+  .topbar h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:22px;
+    margin:0;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .topbar-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:10px;
+  }
+  .export-btn{
+    background:rgba(246,244,238,0.12);
+    border:1px solid rgba(246,244,238,0.3);
+    color:#F6F4EE;
+    border-radius:9px;
+    padding:8px 12px;
+    font-size:12px;
+    font-weight:600;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+    white-space:nowrap;
+    display:flex;
+    align-items:center;
+    gap:5px;
+  }
+  .export-btn:active{ background:rgba(246,244,238,0.22); }
+
+  .sync-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:10px;
+  }
+  .signin-btn{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:#fff;
+    color:#3c3c3c;
+    border:none;
+    border-radius:8px;
+    padding:8px 14px;
+    font-size:12.5px;
+    font-weight:600;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+  }
+  .signin-btn.signed-in{
+    background:rgba(246,244,238,0.12);
+    color:#F6F4EE;
+    border:1px solid rgba(246,244,238,0.3);
+  }
+  .sync-status{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    color:#B7CFC3;
+    display:flex;
+    align-items:center;
+    gap:5px;
+  }
+  .sync-dot{
+    width:6px; height:6px;
+    border-radius:50%;
+    background:#7FBF8E;
+  }
+  .sync-dot.syncing{ background:#E8B34A; animation:pulse 1s infinite; }
+  .sync-dot.error{ background:#E07A6F; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  .sheet-link{
+    color:#B7CFC3;
+    text-decoration:underline;
+    font-size:10.5px;
+  }
+
+  /* Dashboard strip */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    padding:14px 14px 6px;
+  }
+  .stat-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 8px;
+    text-align:center;
+  }
+  .stat-card .num{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:20px;
+    font-weight:700;
+    color:var(--moss-dark);
+    line-height:1.1;
+  }
+  .stat-card .lbl{
+    font-size:10px;
+    color:var(--slate);
+    margin-top:3px;
+    line-height:1.3;
+  }
+  .stat-card.warn .num{ color:var(--rose); }
+
+  /* Controls */
+  .controls{
+    padding:10px 14px 4px;
+    display:flex;
+    gap:8px;
+  }
+  .search-box{
+    flex:1;
+    display:flex;
+    align-items:center;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:0 12px;
+  }
+  .search-box input{
+    border:none;
+    outline:none;
+    background:transparent;
+    padding:10px 6px;
+    font-size:14px;
+    width:100%;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+  }
+  select.filter-select{
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:var(--card);
+    padding:0 10px;
+    font-size:13px;
+    color:var(--slate);
+    font-family:'Inter',sans-serif;
+  }
+
+  .list{
+    padding:10px 14px 20px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .empty-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--muted);
+  }
+  .empty-state .glyph{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:15px;
+    color:var(--slate);
+    margin-bottom:6px;
+    font-weight:600;
+  }
+  .empty-state p{ font-size:13px; line-height:1.6; margin:0; }
+
+  /* Card */
+  .app-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    position:relative;
+    transition:box-shadow .15s ease;
+  }
+  .app-card.stale{
+    border-left:3px solid var(--amber);
+    background:linear-gradient(90deg, var(--amber-soft) 0%, var(--card) 60px);
+  }
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+    cursor:pointer;
+  }
+  .card-main .company{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:16px;
+    font-weight:700;
+    color:var(--ink);
+    line-height:1.25;
+  }
+  .card-main .role{
+    font-size:12.5px;
+    color:var(--slate);
+    margin-top:2px;
+  }
+  .card-meta{
+    display:flex;
+    gap:6px;
+    margin-top:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .badge{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    padding:3px 8px;
+    border-radius:20px;
+    letter-spacing:.02em;
+    white-space:nowrap;
+  }
+  .badge.priority-High{ background:var(--rose-soft); color:var(--rose); }
+  .badge.priority-Medium{ background:var(--amber-soft); color:var(--amber); }
+  .badge.priority-Low{ background:var(--sage-soft); color:var(--moss); }
+  .days-tag{
+    font-size:10.5px;
+    color:var(--muted);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .days-tag.stale-txt{ color:var(--amber); font-weight:600; }
+
+  .status-select{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:11.5px;
+    border:none;
+    border-radius:20px;
+    padding:5px 22px 5px 10px;
+    appearance:none;
+    -webkit-appearance:none;
+    background-repeat:no-repeat;
+    background-position:right 8px center;
+    background-size:9px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%23444' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+    cursor:pointer;
+  }
+
+  .chevron{
+    color:var(--muted);
+    font-size:18px;
+    line-height:1;
+    padding-top:2px;
+    transition:transform .2s ease;
+  }
+  .app-card.expanded .chevron{ transform:rotate(180deg); }
+
+  .card-details{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .25s ease;
+  }
+  .app-card.expanded .card-details{ max-height:900px; margin-top:12px; }
+
+  .detail-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px 12px;
+    padding-top:12px;
+    border-top:1px dashed var(--line);
+  }
+  .detail-grid .full{ grid-column:1 / -1; }
+  .dfield .dlabel{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9.5px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--muted);
+    margin-bottom:2px;
+  }
+  .dfield .dval{
+    font-size:13px;
+    color:var(--ink);
+    word-break:break-word;
+  }
+  .dfield .dval a{ color:var(--moss); text-decoration:none; }
+  .dfield .dval.empty{ color:var(--muted); font-style:italic; }
+
+  .card-actions{
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+  }
+  .btn-sm{
+    flex:1;
+    border:1px solid var(--line);
+    background:var(--paper);
+    border-radius:9px;
+    padding:9px;
+    font-size:12.5px;
+    font-weight:600;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .btn-sm.danger{ color:var(--rose); border-color:var(--rose-soft); }
+
+  /* FAB */
+  .fab{
+    position:fixed;
+    bottom:22px;
+    right:20px;
+    background:var(--moss);
+    color:#fff;
+    border:none;
+    border-radius:30px;
+    padding:15px 22px;
+    font-size:14px;
+    font-weight:700;
+    font-family:'Inter',sans-serif;
+    box-shadow:0 6px 20px rgba(32,66,58,0.35);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    z-index:40;
+  }
+  .fab span.plus{ font-size:18px; line-height:1; }
+
+  /* Modal / form */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(18,35,31,0.45);
+    z-index:50;
+    display:none;
+    align-items:flex-end;
+  }
+  .overlay.open{ display:flex; }
+  .sheet{
+    background:var(--paper);
+    width:100%;
+    max-height:92vh;
+    border-radius:20px 20px 0 0;
+    display:flex;
+    flex-direction:column;
+    animation:slideUp .25s ease;
+  }
+  @keyframes slideUp{ from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;} }
+  .sheet-header{
+    padding:16px 18px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--paper);
+    border-radius:20px 20px 0 0;
+  }
+  .sheet-header h2{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:17px;
+    margin:0;
+    font-weight:700;
+  }
+  .close-btn{
+    border:none;
+    background:var(--line);
+    width:30px; height:30px;
+    border-radius:50%;
+    font-size:15px;
+    cursor:pointer;
+    color:var(--ink);
+  }
+
+  .steps-nav{
+    display:flex;
+    gap:6px;
+    padding:12px 18px 0;
+  }
+  .step-dot{
+    flex:1;
+    height:4px;
+    border-radius:3px;
+    background:var(--line);
+  }
+  .step-dot.active{ background:var(--moss); }
+  .step-dot.done{ background:var(--sage); }
+
+  .sheet-body{
+    padding:14px 18px 10px;
+    overflow-y:auto;
+    flex:1;
+  }
+  .section-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--moss);
+    margin:2px 0 12px;
+  }
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color:var(--slate);
+    margin-bottom:5px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:11px 12px;
+    font-size:14.5px;
+    font-family:'Inter',sans-serif;
+    background:#fff;
+    color:var(--ink);
+    outline:none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    border-color:var(--moss);
+  }
+  .field textarea{ resize:vertical; min-height:70px; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+  .req{ color:var(--rose); }
+
+  .sheet-footer{
+    padding:12px 18px 20px;
+    display:flex;
+    gap:10px;
+    border-top:1px solid var(--line);
+    background:var(--paper);
+  }
+  .btn{
+    flex:1;
+    border:none;
+    border-radius:11px;
+    padding:13px;
+    font-size:14px;
+    font-weight:700;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+  }
+  .btn.ghost{
+    background:var(--line);
+    color:var(--slate);
+  }
+  .btn.primary{
+    background:var(--moss);
+    color:#fff;
+  }
+
+  .toast{
+    position:fixed;
+    bottom:100px;
+    left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--moss-dark);
+    color:#fff;
+    padding:10px 18px;
+    border-radius:30px;
+    font-size:13px;
+    font-weight:600;
+    opacity:0;
+    transition:all .25s ease;
+    z-index:60;
+    pointer-events:none;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+
+  .loading-row{
+    text-align:center;
+    padding:40px;
+    color:var(--muted);
+    font-size:13px;
+    font-family:'JetBrains Mono',monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="eyebrow">PharmaTrendsLive · Career Tools</div>
+  <div class="topbar-row">
+    <h1>Job &amp; Internship Tracker</h1>
+    <button class="export-btn" id="exportBtn">⬇ Export Excel</button>
+  </div>
+  <div class="sync-row" id="syncRow">
+    <button class="signin-btn" id="signinBtn">
+      <svg width="15" height="15" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+      <span>Sign in with Google</span>
+    </button>
+    <div class="sync-status" id="syncStatus" style="display:none;"></div>
+  </div>
+</div>
+
+<div class="stats" id="statsRow"></div>
+
+<div class="controls">
+  <div class="search-box">
+    <span style="color:#8B9791;font-size:13px;">🔍</span>
+    <input type="text" id="searchInput" placeholder="Search company or role...">
+  </div>
+  <select class="filter-select" id="statusFilter">
+    <option value="">All Status</option>
+  </select>
+</div>
+
+<div class="list" id="listContainer">
+  <div class="loading-row">Loading your applications…</div>
+</div>
+
+<button class="fab" id="addBtn"><span class="plus">+</span> Add Application</button>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="formTitle">New Application</h2>
+      <button class="close-btn" id="closeBtn">✕</button>
+    </div>
+    <div class="steps-nav" id="stepsNav"></div>
+    <div class="sheet-body" id="sheetBody"></div>
+    <div class="sheet-footer">
+      <button class="btn ghost" id="prevBtn">Back</button>
+      <button class="btn primary" id="nextBtn">Next</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   GOOGLE SHEETS SYNC CONFIG
+   -> Replace CLIENT_ID below with your own OAuth Client ID from
+      Google Cloud Console (Step 4 of the setup guide).
+   ===================================================================== */
+const GOOGLE_CONFIG = {
+  CLIENT_ID: "383389516895-ufmcaq5vq2ie2ie98eln9btl059nnqal.apps.googleusercontent.com",
+  SCOPES: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",
+  SHEET_NAME: "My Job Tracker - PharmaTrendsLive",
+  TAB_NAME: "Job Tracker"
+};
+
+/* Column order written to the sheet. Column U (index 20) is a hidden
+   internal ID used to match sheet rows back to app entries. */
+const SHEET_COLUMNS = [
+  "company","role","link","location","domain",
+  "dateApplied","source","status","stageDate",
+  "_daysApplied","_daysUpdate","nextAction","nextActionDate",
+  "referral","hrEmail","hrPhone","ctc","priority","resumeVersion","comments","id"
+];
+const SHEET_HEADERS = [
+  "Company Name","Job Title / Role","Job Link/URL","Location","Domain/Function",
+  "Date Applied","Source","Application Status","Current Stage Date",
+  "Days Since Applied","Days Since Last Update","Next Action","Next Action Date",
+  "Referral / Contact Person","HR Email","HR Phone","CTC Offered/Range",
+  "Priority","Resume Version Used","Comments/Notes","_id"
+];
+
+let googleAuth = { token: null, email: null };
+let tokenClient = null;
+let spreadsheetId = null;
+let spreadsheetUrl = null;
+let sheetGid = null;
+let isSyncing = false;
+
+/* ---------------- Fetch with retry (handles 429 / transient errors) ---------------- */
+async function fetchWithRetry(url, options, maxRetries = 5){
+  let attempt = 0;
+  while(attempt <= maxRetries){
+    const res = await fetch(url, options);
+    if(res.status === 401){
+      // Access token expired or invalid — needs a fresh sign-in, not a retry.
+      googleAuth.token = null;
+      updateSigninUI(false);
+      setSyncStatus('error', 'Session expired — tap Sign in to reconnect');
+      throw new Error("AUTH_EXPIRED");
+    }
+    if(res.status === 429 || res.status === 503){
+      attempt++;
+      if(attempt > maxRetries) throw new Error("Rate limited, please try again shortly.");
+      const wait = Math.min(1000 * Math.pow(2, attempt), 16000) + Math.random()*300;
+      setSyncStatus('syncing', `Retrying in ${Math.round(wait/1000)}s...`);
+      await new Promise(r=>setTimeout(r, wait));
+      continue;
+    }
+    return res;
+  }
+}
+
+function authHeader(){
+  return { "Authorization": `Bearer ${googleAuth.token}`, "Content-Type": "application/json" };
+}
+
+/* ---------------- Auth ---------------- */
+function initGoogleAuth(){
+  if(!window.google || GOOGLE_CONFIG.CLIENT_ID.includes("YOUR_CLIENT_ID")){
+    return; // not configured yet, app still works in local/offline mode
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CONFIG.CLIENT_ID,
+    scope: GOOGLE_CONFIG.SCOPES,
+    callback: async (resp) => {
+      if(resp.error){
+        showToast("Sign-in failed. Please try again.");
+        return;
+      }
+      googleAuth.token = resp.access_token;
+      await afterSignIn();
+    }
+  });
+}
+
+function signIn(){
+  if(!tokenClient){
+    showToast("Google sign-in isn't set up yet on this copy of the app.");
+    return;
+  }
+  tokenClient.requestAccessToken();
+}
+
+async function afterSignIn(){
+  setSyncStatus('syncing', 'Connecting to Google Sheets...');
+  try{
+    await fetchProfile();
+    await ensureSpreadsheet();
+    await loadFromSheet();
+    updateSigninUI(true);
+    setSyncStatus('synced', 'Synced');
+    showToast(`Signed in as ${googleAuth.email}`);
+  }catch(e){
+    console.error(e);
+    setSyncStatus('error', 'Sync error — using local data');
+    showToast("Couldn't connect to Google Sheets. Working offline.");
+  }
+}
+
+async function fetchProfile(){
+  try{
+    const res = await fetchWithRetry("https://www.googleapis.com/oauth2/v2/userinfo", {headers: authHeader()});
+    const data = await res.json();
+    googleAuth.email = data.email || "Google account";
+  }catch(e){ googleAuth.email = "Google account"; }
+}
+
+function updateSigninUI(signedIn){
+  const btn = document.getElementById('signinBtn');
+  if(signedIn){
+    btn.classList.add('signed-in');
+    btn.querySelector('span').textContent = googleAuth.email ? googleAuth.email.split('@')[0] : "Connected";
+  } else {
+    btn.classList.remove('signed-in');
+    btn.querySelector('span').textContent = "Sign in with Google";
+  }
+}
+
+function setSyncStatus(state, text){
+  const el = document.getElementById('syncStatus');
+  el.style.display = 'flex';
+  const dotClass = state === 'syncing' ? 'syncing' : (state === 'error' ? 'error' : '');
+  let linkHtml = '';
+  if(state === 'synced' && spreadsheetUrl){
+    linkHtml = ` · <a class="sheet-link" href="${spreadsheetUrl}" target="_blank" rel="noopener">Open Sheet</a>`;
+  }
+  el.innerHTML = `<span class="sync-dot ${dotClass}"></span>${text}${linkHtml}`;
+}
+
+/* ---------------- Spreadsheet find-or-create ---------------- */
+async function ensureSpreadsheet(){
+  const q = encodeURIComponent(`name='${GOOGLE_CONFIG.SHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const searchRes = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,webViewLink)`, {headers: authHeader()});
+  const searchData = await searchRes.json();
+
+  if(searchData.files && searchData.files.length > 0){
+    spreadsheetId = searchData.files[0].id;
+    spreadsheetUrl = searchData.files[0].webViewLink;
+    await getSheetGid();
+    return;
+  }
+
+  // create new spreadsheet with header row
+  const createRes = await fetchWithRetry("https://sheets.googleapis.com/v4/spreadsheets", {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({
+      properties: { title: GOOGLE_CONFIG.SHEET_NAME },
+      sheets: [{ properties: { title: GOOGLE_CONFIG.TAB_NAME } }]
+    })
+  });
+  const createData = await createRes.json();
+  spreadsheetId = createData.spreadsheetId;
+  spreadsheetUrl = createData.spreadsheetUrl;
+  sheetGid = createData.sheets[0].properties.sheetId;
+
+  await fetchWithRetry(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(GOOGLE_CONFIG.TAB_NAME+'!A1')}?valueInputOption=RAW`,
+    { method:"PUT", headers: authHeader(), body: JSON.stringify({ values:[SHEET_HEADERS] }) }
+  );
+}
+
+async function getSheetGid(){
+  const res = await fetchWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`, {headers: authHeader()});
+  const data = await res.json();
+  const sheet = data.sheets.find(s=>s.properties.title === GOOGLE_CONFIG.TAB_NAME) || data.sheets[0];
+  sheetGid = sheet.properties.sheetId;
+}
+
+/* ---------------- Read all rows ---------------- */
+function rowToApp(row, rowNumber){
+  const app = { rowNumber };
+  SHEET_COLUMNS.forEach((key, i)=>{
+    if(key.startsWith('_')) return;
+    app[key] = row[i] || '';
+  });
+  app.id = row[20] || uid();
+  return app;
+}
+
+async function loadFromSheet(){
+  const res = await fetchWithRetry(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(GOOGLE_CONFIG.TAB_NAME+'!A2:U1000')}`,
+    { headers: authHeader() }
+  );
+  const data = await res.json();
+  const rows = data.values || [];
+  applications = rows
+    .map((row, i) => rowToApp(row, i + 2))
+    .filter(a => a.company && a.company.trim() !== '');
+  render();
+}
+
+/* ---------------- Write operations ---------------- */
+function appToRowArray(app){
+  return [
+    app.company||'', app.role||'', app.link||'', app.location||'', app.domain||'',
+    app.dateApplied||'', app.source||'', app.status||'', app.stageDate||'',
+    daysSince(app.dateApplied) ?? '', daysSince(app.stageDate) ?? '',
+    app.nextAction||'', app.nextActionDate||'', app.referral||'', app.hrEmail||'',
+    app.hrPhone||'', app.ctc||'', app.priority||'', app.resumeVersion||'', app.comments||'',
+    app.id
+  ];
+}
+
+async function sheetAppendRow(app){
+  setSyncStatus('syncing', 'Saving...');
+  await fetchWithRetry(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(GOOGLE_CONFIG.TAB_NAME+'!A2')}:append?valueInputOption=RAW`,
+    { method:"POST", headers: authHeader(), body: JSON.stringify({ values:[appToRowArray(app)] }) }
+  );
+  await loadFromSheet();
+  setSyncStatus('synced', 'Synced');
+}
+
+async function sheetUpdateRow(app){
+  if(!app.rowNumber){ await loadFromSheet(); app = applications.find(a=>a.id===app.id) || app; }
+  setSyncStatus('syncing', 'Saving...');
+  await fetchWithRetry(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(GOOGLE_CONFIG.TAB_NAME+'!A'+app.rowNumber+':U'+app.rowNumber)}?valueInputOption=RAW`,
+    { method:"PUT", headers: authHeader(), body: JSON.stringify({ values:[appToRowArray(app)] }) }
+  );
+  await loadFromSheet();
+  setSyncStatus('synced', 'Synced');
+}
+
+async function sheetDeleteRow(app){
+  setSyncStatus('syncing', 'Deleting...');
+  await fetchWithRetry(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+    { method:"POST", headers: authHeader(), body: JSON.stringify({
+      requests:[{ deleteDimension: { range: {
+        sheetId: sheetGid, dimension: "ROWS",
+        startIndex: app.rowNumber - 1, endIndex: app.rowNumber
+      }}}]
+    })}
+  );
+  await loadFromSheet();
+  setSyncStatus('synced', 'Synced');
+}
+</script>
+
+<script>
+/* ---------------- Config: field schema (all 20 columns, grouped into steps) ---------------- */
+const STATUS_OPTIONS = ["Applied","Shortlisted","OA/Assessment","Interview R1","Interview R2","Interview R3","Offer","Rejected","Withdrawn","On Hold"];
+const SOURCE_OPTIONS = ["LinkedIn","Naukri","Referral","Company Website","Instahyre","Recruiter Outreach","Other"];
+const PRIORITY_OPTIONS = ["High","Medium","Low"];
+const DOMAIN_OPTIONS = ["Biosimilars","CI","Regulatory Affairs","Medical Writing","HEOR/RWE","Commercial Analytics","R&D","Other"];
+
+const STATUS_COLORS = {
+  "Applied": {bg:"#E4EDF6", fg:"#2E5A86"},
+  "Shortlisted": {bg:"#F3E3D2", fg:"#C77D3A"},
+  "OA/Assessment": {bg:"#F3E3D2", fg:"#C77D3A"},
+  "Interview R1": {bg:"#F3E3D2", fg:"#C77D3A"},
+  "Interview R2": {bg:"#F3E3D2", fg:"#C77D3A"},
+  "Interview R3": {bg:"#F3E3D2", fg:"#C77D3A"},
+  "Offer": {bg:"#E1EFE3", fg:"#2F6B3E"},
+  "Rejected": {bg:"#F5DEDB", fg:"#B0473F"},
+  "Withdrawn": {bg:"#EAEAEA", fg:"#6B6B6B"},
+  "On Hold": {bg:"#EAEAEA", fg:"#6B6B6B"},
+};
+
+const STEPS = [
+  {
+    title: "Basics",
+    fields: [
+      {key:"company", label:"Company Name", type:"text", required:true, placeholder:"e.g. Sandoz Biosimilars"},
+      {key:"role", label:"Job Title / Role", type:"text", required:true, placeholder:"e.g. CI Analyst Intern"},
+      {key:"link", label:"Job Link / URL", type:"text", placeholder:"https://..."},
+      {key:"location", label:"Location", type:"text", placeholder:"e.g. Bengaluru (Hybrid)"},
+      {key:"domain", label:"Domain / Function", type:"select", options:DOMAIN_OPTIONS},
+    ]
+  },
+  {
+    title: "Status & Timeline",
+    fields: [
+      {key:"dateApplied", label:"Date Applied", type:"date"},
+      {key:"source", label:"Source", type:"select", options:SOURCE_OPTIONS},
+      {key:"status", label:"Application Status", type:"select", options:STATUS_OPTIONS, default:"Applied"},
+      {key:"stageDate", label:"Current Stage Date", type:"date"},
+      {key:"nextAction", label:"Next Action", type:"text", placeholder:"e.g. Follow up with HR"},
+      {key:"nextActionDate", label:"Next Action Date", type:"date"},
+    ]
+  },
+  {
+    title: "Contact Details",
+    fields: [
+      {key:"referral", label:"Referral / Contact Person", type:"text", placeholder:"Name (relation)"},
+      {key:"hrEmail", label:"HR Email", type:"text", placeholder:"name@company.com"},
+      {key:"hrPhone", label:"HR Phone", type:"text", placeholder:"+91 ..."},
+    ]
+  },
+  {
+    title: "Compensation & Notes",
+    fields: [
+      {key:"ctc", label:"CTC Offered / Range", type:"text", placeholder:"e.g. 6-8 LPA"},
+      {key:"priority", label:"Priority", type:"select", options:PRIORITY_OPTIONS, default:"Medium"},
+      {key:"resumeVersion", label:"Resume Version Used", type:"text", placeholder:"e.g. Resume_v2.pdf"},
+      {key:"comments", label:"Comments / Notes", type:"textarea", placeholder:"Interview questions, feedback, anything worth remembering..."},
+    ]
+  }
+];
+
+const FIELD_LABELS = {};
+STEPS.forEach(s => s.fields.forEach(f => FIELD_LABELS[f.key] = f.label));
+
+/* ---------------- State ---------------- */
+let applications = [];
+let currentStep = 0;
+let editingId = null;
+let formData = {};
+let expandedId = null;
+
+/* ---------------- Storage ---------------- */
+const STORAGE_KEY = "applications";
+
+async function loadApplications(){
+  if(googleAuth.token && spreadsheetId){
+    try{ await loadFromSheet(); return; }catch(e){ console.error(e); }
+  }
+  try{
+    const result = await window.storage.get(STORAGE_KEY, false);
+    applications = result ? JSON.parse(result.value) : [];
+  }catch(e){
+    applications = [];
+  }
+  render();
+}
+
+async function saveApplications(){
+  // Local fallback save (used when not signed in to Google)
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(applications), false);
+  }catch(e){
+    showToast("⚠️ Could not save. Try again.");
+  }
+}
+
+/* ---------------- Helpers ---------------- */
+function uid(){ return 'a' + Date.now() + Math.random().toString(36).slice(2,8); }
+
+function daysSince(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return null;
+  const now = new Date();
+  const diff = Math.floor((now.setHours(0,0,0,0) - d.setHours(0,0,0,0)) / 86400000);
+  return diff;
+}
+
+function isStale(app){
+  const d = daysSince(app.stageDate);
+  return d !== null && d > 10 && !["Rejected","Withdrawn","Offer"].includes(app.status);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ---------------- Dashboard ---------------- */
+function renderStats(){
+  const total = applications.length;
+  const active = applications.filter(a=>!["Rejected","Withdrawn","Offer"].includes(a.status)).length;
+  const interviews = applications.filter(a=>(a.status||"").startsWith("Interview")).length;
+  const offers = applications.filter(a=>a.status==="Offer").length;
+  const responseRate = total ? Math.round(((total - applications.filter(a=>a.status==="Applied").length) / total) * 100) : 0;
+  const followUps = applications.filter(isStale).length;
+
+  const stats = [
+    {num:total, lbl:"Total Apps"},
+    {num:active, lbl:"Active"},
+    {num:interviews, lbl:"Interviews"},
+    {num:offers, lbl:"Offers"},
+    {num:responseRate+"%", lbl:"Response Rate"},
+    {num:followUps, lbl:"Need Follow-up", warn:followUps>0},
+  ];
+  document.getElementById('statsRow').innerHTML = stats.map(s=>`
+    <div class="stat-card ${s.warn?'warn':''}">
+      <div class="num">${s.num}</div>
+      <div class="lbl">${s.lbl}</div>
+    </div>
+  `).join('');
+}
+
+/* ---------------- List ---------------- */
+function populateStatusFilter(){
+  const sel = document.getElementById('statusFilter');
+  sel.innerHTML = '<option value="">All Status</option>' + STATUS_OPTIONS.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
+function detailRow(label, value, isLink){
+  const empty = !value;
+  const displayVal = empty ? "—" : (isLink ? `<a href="${value}" target="_blank" rel="noopener">${value}</a>` : escapeHtml(value));
+  return `<div class="dfield"><div class="dlabel">${label}</div><div class="dval ${empty?'empty':''}">${displayVal}</div></div>`;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderList(){
+  const container = document.getElementById('listContainer');
+  const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+  const statusFilterVal = document.getElementById('statusFilter').value;
+
+  let filtered = applications.filter(a=>{
+    const matchesSearch = !searchTerm || (a.company||'').toLowerCase().includes(searchTerm) || (a.role||'').toLowerCase().includes(searchTerm);
+    const matchesStatus = !statusFilterVal || a.status === statusFilterVal;
+    return matchesSearch && matchesStatus;
+  });
+
+  // sort: stale first, then by date applied desc
+  filtered.sort((a,b)=>{
+    const aStale = isStale(a), bStale = isStale(b);
+    if(aStale !== bStale) return aStale ? -1 : 1;
+    return new Date(b.dateApplied||0) - new Date(a.dateApplied||0);
+  });
+
+  if(applications.length === 0){
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="glyph">No applications yet</div>
+        <p>Tap "+ Add Application" below to log<br>your first job or internship.</p>
+      </div>`;
+    return;
+  }
+
+  if(filtered.length === 0){
+    container.innerHTML = `<div class="empty-state"><div class="glyph">No matches</div><p>Try a different search or filter.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(a=>{
+    const stale = isStale(a);
+    const dApplied = daysSince(a.dateApplied);
+    const dUpdate = daysSince(a.stageDate);
+    const isExpanded = expandedId === a.id;
+    const sc = STATUS_COLORS[a.status] || {bg:"#EEE", fg:"#555"};
+
+    return `
+    <div class="app-card ${stale?'stale':''} ${isExpanded?'expanded':''}" data-id="${a.id}">
+      <div class="card-top" onclick="toggleExpand('${a.id}')">
+        <div class="card-main">
+          <div class="company">${escapeHtml(a.company||'Untitled')}</div>
+          <div class="role">${escapeHtml(a.role||'—')}</div>
+          <div class="card-meta">
+            <select class="status-select" style="background-color:${sc.bg};color:${sc.fg};" onclick="event.stopPropagation()" onchange="quickStatusChange('${a.id}', this.value)">
+              ${STATUS_OPTIONS.map(s=>`<option value="${s}" ${s===a.status?'selected':''}>${s}</option>`).join('')}
+            </select>
+            ${a.priority ? `<span class="badge priority-${a.priority}">${a.priority}</span>` : ''}
+            ${dUpdate!==null ? `<span class="days-tag ${stale?'stale-txt':''}">${stale?'⚠ ':''}${dUpdate}d since update</span>` : ''}
+          </div>
+        </div>
+        <div class="chevron">⌄</div>
+      </div>
+      <div class="card-details">
+        <div class="detail-grid">
+          ${detailRow("Location", a.location)}
+          ${detailRow("Domain", a.domain)}
+          ${detailRow("Date Applied", a.dateApplied)}
+          ${detailRow("Source", a.source)}
+          ${detailRow("Days Since Applied", dApplied!==null ? dApplied+" days" : "")}
+          ${detailRow("Current Stage Date", a.stageDate)}
+          ${detailRow("Next Action", a.nextAction)}
+          ${detailRow("Next Action Date", a.nextActionDate)}
+          ${detailRow("Referral / Contact", a.referral)}
+          ${detailRow("HR Email", a.hrEmail)}
+          ${detailRow("HR Phone", a.hrPhone)}
+          ${detailRow("CTC Offered/Range", a.ctc)}
+          ${detailRow("Resume Version", a.resumeVersion)}
+          ${a.link ? `<div class="dfield full">${detailRow("Job Link", a.link, true)}</div>` : ''}
+          <div class="dfield full">${detailRow("Comments / Notes", a.comments)}</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-sm" onclick="event.stopPropagation(); openEdit('${a.id}')">✏️ Edit</button>
+          <button class="btn-sm danger" onclick="event.stopPropagation(); deleteApp('${a.id}')">🗑 Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleExpand(id){
+  expandedId = (expandedId === id) ? null : id;
+  renderList();
+}
+
+async function quickStatusChange(id, newStatus){
+  const app = applications.find(a=>a.id===id);
+  if(!app) return;
+  app.status = newStatus;
+  app.stageDate = new Date().toISOString().slice(0,10);
+  if(googleAuth.token && spreadsheetId){
+    try{ await sheetUpdateRow(app); showToast("Status updated ✓"); return; }
+    catch(e){ setSyncStatus('error','Sync failed'); showToast("Couldn't sync — check connection"); }
+  }
+  await saveApplications();
+  render();
+  showToast("Status updated ✓");
+}
+
+async function deleteApp(id){
+  if(!confirm("Delete this application? This can't be undone.")) return;
+  const app = applications.find(a=>a.id===id);
+  if(googleAuth.token && spreadsheetId && app){
+    try{ await sheetDeleteRow(app); showToast("Application deleted"); return; }
+    catch(e){ setSyncStatus('error','Sync failed'); showToast("Couldn't sync — check connection"); }
+  }
+  applications = applications.filter(a=>a.id!==id);
+  await saveApplications();
+  render();
+  showToast("Application deleted");
+}
+
+function render(){
+  renderStats();
+  renderList();
+}
+
+/* ---------------- Form (multi-step) ---------------- */
+function openAdd(){
+  editingId = null;
+  formData = { status:"Applied", priority:"Medium", dateApplied: new Date().toISOString().slice(0,10) };
+  currentStep = 0;
+  document.getElementById('formTitle').textContent = "New Application";
+  openSheet();
+}
+
+function openEdit(id){
+  const app = applications.find(a=>a.id===id);
+  if(!app) return;
+  editingId = id;
+  formData = {...app};
+  currentStep = 0;
+  document.getElementById('formTitle').textContent = "Edit Application";
+  openSheet();
+}
+
+function openSheet(){
+  document.getElementById('overlay').classList.add('open');
+  renderStepsNav();
+  renderStepBody();
+}
+
+function closeSheet(){
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function renderStepsNav(){
+  document.getElementById('stepsNav').innerHTML = STEPS.map((s,i)=>{
+    let cls = '';
+    if(i === currentStep) cls = 'active';
+    else if(i < currentStep) cls = 'done';
+    return `<div class="step-dot ${cls}"></div>`;
+  }).join('');
+}
+
+function renderStepBody(){
+  const step = STEPS[currentStep];
+  const body = document.getElementById('sheetBody');
+  body.innerHTML = `<div class="section-title">${step.title} · Step ${currentStep+1} of ${STEPS.length}</div>` +
+    step.fields.map(f=>renderField(f)).join('');
+
+  document.getElementById('prevBtn').textContent = currentStep === 0 ? "Cancel" : "Back";
+  document.getElementById('nextBtn').textContent = currentStep === STEPS.length - 1 ? (editingId ? "Save Changes" : "Save Application") : "Next";
+
+  body.scrollTop = 0;
+}
+
+function renderField(f){
+  const val = formData[f.key] !== undefined ? formData[f.key] : (f.default || '');
+  if(f.type === 'select'){
+    return `
+      <div class="field">
+        <label>${f.label}${f.required?' <span class="req">*</span>':''}</label>
+        <select data-key="${f.key}" onchange="updateField(this)">
+          <option value="">Select...</option>
+          ${f.options.map(o=>`<option value="${o}" ${o===val?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>`;
+  }
+  if(f.type === 'textarea'){
+    return `
+      <div class="field">
+        <label>${f.label}</label>
+        <textarea data-key="${f.key}" placeholder="${f.placeholder||''}" oninput="updateField(this)">${val ? escapeHtml(val) : ''}</textarea>
+      </div>`;
+  }
+  return `
+    <div class="field">
+      <label>${f.label}${f.required?' <span class="req">*</span>':''}</label>
+      <input type="${f.type}" data-key="${f.key}" placeholder="${f.placeholder||''}" value="${val ? escapeHtml(val) : ''}" oninput="updateField(this)">
+    </div>`;
+}
+
+function updateField(el){
+  formData[el.dataset.key] = el.value;
+}
+
+async function handleNext(){
+  const step = STEPS[currentStep];
+  // validate required
+  for(const f of step.fields){
+    if(f.required && !formData[f.key]){
+      showToast(`Please fill "${f.label}"`);
+      return;
+    }
+  }
+  if(currentStep < STEPS.length - 1){
+    currentStep++;
+    renderStepsNav();
+    renderStepBody();
+  } else {
+    // save
+    try{
+      if(editingId){
+        const idx = applications.findIndex(a=>a.id===editingId);
+        const updated = {...applications[idx], ...formData, id: editingId};
+        applications[idx] = updated;
+        if(googleAuth.token && spreadsheetId){
+          await sheetUpdateRow(updated);
+        } else {
+          await saveApplications();
+        }
+        showToast("Changes saved ✓");
+      } else {
+        const newApp = {...formData, id: uid(), stageDate: formData.stageDate || formData.dateApplied};
+        if(googleAuth.token && spreadsheetId){
+          await sheetAppendRow(newApp);
+        } else {
+          applications.push(newApp);
+          await saveApplications();
+        }
+        showToast("Application added ✓");
+      }
+    }catch(e){
+      console.error(e);
+      if(e.message === "AUTH_EXPIRED"){
+        showToast("Your Google session expired — saved locally. Please sign in again.");
+      } else {
+        setSyncStatus('error', 'Sync failed');
+        showToast("Couldn't sync to Google Sheets — saved locally instead");
+      }
+      if(editingId){
+        const idx = applications.findIndex(a=>a.id===editingId);
+        applications[idx] = {...applications[idx], ...formData, id: editingId};
+      } else {
+        applications.push({...formData, id: uid(), stageDate: formData.stageDate || formData.dateApplied});
+      }
+      await saveApplications();
+    }
+    closeSheet();
+    render();
+  }
+}
+
+function handlePrev(){
+  if(currentStep === 0){
+    closeSheet();
+  } else {
+    currentStep--;
+    renderStepsNav();
+    renderStepBody();
+  }
+}
+
+/* ---------------- Export to Excel ---------------- */
+function exportToExcel(){
+  if(applications.length === 0){
+    showToast("No applications to export yet");
+    return;
+  }
+  const headers = [
+    "Company Name","Job Title / Role","Job Link/URL","Location","Domain/Function",
+    "Date Applied","Source","Application Status","Current Stage Date",
+    "Days Since Applied","Days Since Last Update","Next Action","Next Action Date",
+    "Referral / Contact Person","HR Email","HR Phone","CTC Offered/Range",
+    "Priority","Resume Version Used","Comments/Notes"
+  ];
+
+  const rows = applications.map(a=>[
+    a.company||'', a.role||'', a.link||'', a.location||'', a.domain||'',
+    a.dateApplied||'', a.source||'', a.status||'', a.stageDate||'',
+    daysSince(a.dateApplied) ?? '', daysSince(a.stageDate) ?? '',
+    a.nextAction||'', a.nextActionDate||'', a.referral||'', a.hrEmail||'',
+    a.hrPhone||'', a.ctc||'', a.priority||'', a.resumeVersion||'', a.comments||''
+  ]);
+
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // reasonable column widths
+  ws['!cols'] = [
+    {wch:20},{wch:24},{wch:22},{wch:16},{wch:16},
+    {wch:13},{wch:14},{wch:16},{wch:14},
+    {wch:10},{wch:10},{wch:20},{wch:14},
+    {wch:20},{wch:24},{wch:15},{wch:16},
+    {wch:10},{wch:16},{wch:34}
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Job Tracker");
+
+  const dateStamp = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Job_Tracker_Export_${dateStamp}.xlsx`);
+  showToast("Excel file downloaded ✓");
+}
+
+/* ---------------- Init ---------------- */
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+document.getElementById('signinBtn').addEventListener('click', signIn);
+document.getElementById('addBtn').addEventListener('click', openAdd);
+document.getElementById('closeBtn').addEventListener('click', closeSheet);
+document.getElementById('nextBtn').addEventListener('click', handleNext);
+document.getElementById('prevBtn').addEventListener('click', handlePrev);
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeSheet(); });
+document.getElementById('searchInput').addEventListener('input', renderList);
+document.getElementById('statusFilter').addEventListener('change', renderList);
+
+populateStatusFilter();
+loadApplications();
+window.addEventListener('load', () => {
+  setTimeout(initGoogleAuth, 300); // wait for GIS script to be ready
+});
+</script>
+</body>
+</html>
