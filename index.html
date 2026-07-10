@@ -929,6 +929,9 @@ function daysSince(dateStr){
   if(isNaN(d)) return null;
   const now = new Date();
   const diff = Math.floor((now.setHours(0,0,0,0) - d.setHours(0,0,0,0)) / 86400000);
+  // Guard against garbage/typo'd dates (e.g. wrong year typed) producing
+  // nonsensical huge numbers — treat anything outside ~30 years as invalid.
+  if(diff < -10950 || diff > 10950) return null;
   return diff;
 }
 
