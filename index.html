@@ -577,7 +577,7 @@
    ===================================================================== */
 const GOOGLE_CONFIG = {
   CLIENT_ID: "383389516895-ufmcaq5vq2ie2ie98eln9btl059nnqal.apps.googleusercontent.com",
-  SCOPES: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",
+  SCOPES: "openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",
   SHEET_NAME: "My Job Tracker - PharmaTrendsLive",
   TAB_NAME: "Job Tracker"
 };
@@ -677,8 +677,13 @@ async function afterSignIn(){
 }
 
 async function fetchProfile(){
+  // Uses a plain fetch (not fetchWithRetry) so that a failure here — e.g. a
+  // scope hiccup on this one endpoint — can never invalidate the main
+  // Sheets/Drive session token. This call is cosmetic only (shows the
+  // signed-in email); it should never be able to break sync.
   try{
-    const res = await fetchWithRetry("https://www.googleapis.com/oauth2/v2/userinfo", {headers: authHeader()});
+    const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {headers: authHeader()});
+    if(!res.ok){ googleAuth.email = "Google account"; return; }
     const data = await res.json();
     googleAuth.email = data.email || "Google account";
   }catch(e){ googleAuth.email = "Google account"; }
